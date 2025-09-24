@@ -1,7 +1,7 @@
 """
 PDF — A4 em pé, fundo preto, 4 quadrantes
 Q1: foto principal (cover) + faixa de preço dourada arredondada (com borda)
-Q2: logo topo do projeto centralizada (maior) → EMPREENDIMENTO / BAIRRO (negrito, auto‑fit) → endereço (menor)
+Q2: logo topo do projeto centralizada (maior) → EMPREENDIMENTO e BAIRRO (cada um pode quebrar em 2 linhas, auto-fit) → endereço (menor)
 Q3: descrição do imóvel (justificada, Arial/Helvetica). **Sem CTA e sem WhatsApp**
 Q4: 4 fotos 2x2 cobrindo TODO o espaço (cover), sem margens
 
@@ -87,6 +87,7 @@ def get_native_watermark() -> Optional[Image.Image]:
         except Exception:
             return None
     return None
+
 
 def icon_reader(key: str) -> Optional[ImageReader]:
     """Lê um ícone do dicionário base64 usando a chave informada."""
@@ -225,12 +226,42 @@ def draw_onepage_portrait_quadrants(
 
     cursor = draw_logo_center(cursor) - 40
 
-    line_text = f"{(empreendimento or 'EMPREENDIMENTO').upper()} / {(bairro or 'BAIRRO').upper()}"
+    # ====== NOVO: EMPREENDIMENTO e BAIRRO em blocos separados, até 2 linhas cada, com auto-fit ======
     max_w = w2 - 2 * pad_out
-    size = fit_single_line(line_text, max_w, FONT_BOLD, max_size=26, min_size=12)
-    c.setFillColor(colors.white); c.setFont(FONT_BOLD, size)
-    c.drawString(tx, cursor, line_text)
-    cursor -= (size + 10)
+
+    # EMPREENDIMENTO
+    emp_text = (empreendimento or "EMPREENDIMENTO").upper()
+    emp_size = 26
+    while emp_size > 12:
+        emp_lines = wrap_text(emp_text, max_w, FONT_BOLD, emp_size)
+        if len(emp_lines) <= 2:
+            break
+        emp_size -= 1
+
+    c.setFillColor(colors.white)
+    c.setFont(FONT_BOLD, emp_size)
+    for ln in emp_lines[:2]:
+        c.drawString(tx, cursor, ln)
+        cursor -= (emp_size + 6)
+
+    cursor -= 4  # respiro entre EMP e BAIRRO
+
+    # BAIRRO
+    bai_text = (bairro or "BAIRRO").upper()
+    bai_size = 26
+    while bai_size > 12:
+        bai_lines = wrap_text(bai_text, max_w, FONT_BOLD, bai_size)
+        if len(bai_lines) <= 2:
+            break
+        bai_size -= 1
+
+    c.setFont(FONT_BOLD, bai_size)
+    for ln in bai_lines[:2]:
+        c.drawString(tx, cursor, ln)
+        cursor -= (bai_size + 6)
+
+    cursor -= 6  # respiro antes do endereço
+    # ====== FIM DO NOVO BLOCO ======
 
     if endereco:
         c.setFillColor(colors.HexColor("#C9C9C9"))
@@ -441,7 +472,7 @@ if st.button("Gerar PDF", type="primary"):
             )
 
 st.caption(
-    "• Q2: logo do topo carregada do arquivo local; EMPREENDIMENTO / BAIRRO com auto‑fit; endereço menor."
-    "• Inferior 40/60 (E/D). • Q3 justificado (sem CTA/WhatsApp). • Q4 cobre 100% das células."
+    "• Q2: logo do topo carregada do arquivo local; EMPREENDIMENTO e BAIRRO com auto-fit (até 2 linhas cada); endereço menor. "
+    "• Inferior 40/60 (E/D). • Q3 justificado (sem CTA/WhatsApp). • Q4 cobre 100% das células. "
     "• Q1 com faixa de preço arredondada. • Marca d'água central ~30% com opacidade 22% em todas as fotos."
 )
